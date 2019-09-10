@@ -1,0 +1,90 @@
+---
+- name: "To setup complete Samba server"
+  hosts: server1
+  tasks:
+  - name: "Installing samba packages"
+    yum: 
+     name: [ 'samba','samba-client','policycoreutils-python' ]
+     state: present
+  - name: "create shared storage"
+    file:
+     path: /samba
+     state: directory
+     mode: 0755
+  - name: "setting selinux context"
+    sefcontext:
+     target: '/samba(/.*)?'
+     setype: samba_share_t
+     state: present
+  - name: "adding users diya and priya"
+    user:
+     name: '{{ item.name }}'
+     uid: '{{ item.uid }}'
+     state: present
+    with_items:
+     - { name: diya, uid: 2001}
+     - { name: priya, uid: 2002}
+  - name: adding user as samba users
+    command: smbpasswd -n -a '{ item }' 
+    with_items:
+     - diya
+     - priya
+  - name:
+    command: pdbedit -L
+    register: pdb
+  - debug:
+     msg: samba user list
+     var: pdb
+  - name: "creating samba entry"
+    blockinfile:
+     backup: yes
+     path: /etc/samba/smb.conf
+     block: |
+       [samba]
+       path=/samba
+       browseable=yes
+       hosts allow=192.168.122.0/24
+       valid users=diya priya
+       write list=diya      
+  - name: "adding firewalld samba service"
+    firewalld: 
+     service: samba
+     state: enabled
+     permanent: yes
+     immediate: yes
+  - name: "starting service smb nmb"
+    service:
+     name: '{ item }'
+     state: restarted
+     enabled: yes
+    with_items:
+     - smb
+     - nmb
+
+- name: "To setuip complete samba client"
+  hosts: client1
+  tasks:
+  - name: "create mount point"
+    file:
+     path: /mnt/samba
+     state: directory
+     mode: 0755
+  - name: "Installing libselinux-python package"
+    yum: 
+     name: [ 'libselinux-python', 'cifs-utils']
+     state: present
+  - name: "mounting directory at client"   
+    mount:
+     backup: yes
+     src: //192.168.122.62/samba
+     path: /mnt/samba
+     fstype: cifs
+     opts: username=diya,multiuser,sec=ntlmssp,default
+     state: mounted
+  - name: "checking df -h output"
+    command: df -h
+    register: cmd
+  - debug:
+     var: cmd
+     
+     
