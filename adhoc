@@ -1,0 +1,1 @@
+ansible localhost -m lineinfile -a "regexp='^Ansible is Awesome' line='Ansible is SuperAwesome'  path=./motd"

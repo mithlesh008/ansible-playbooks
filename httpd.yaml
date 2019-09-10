@@ -1,0 +1,23 @@
+---
+- name: "Httpd"
+  gather_facts: false
+  hosts: localhost
+  tasks:
+  - name: "Installing httpd"
+    yum:
+      name: httpd
+      state: present
+  - name: "Installing elinks"
+    yum:
+      name: elinks
+      state: present
+  - name: "service start"
+    service:
+      name: httpd
+      state: started
+      enabled: yes
+  - name: "creating new index file"
+    lineinfile: 
+      line: "Welcome to my Ansible World"
+      path: /var/www/html/index.html
+      create: yes
