@@ -16,6 +16,8 @@
      target: '/samba(/.*)?'
      setype: samba_share_t
      state: present
+  - name: "restoring samba directory label"
+    command: restorecon -irv /samba
   - name: "adding users diya and priya"
     user:
      name: '{{ item.name }}'
@@ -25,7 +27,7 @@
      - { name: diya, uid: 2001}
      - { name: priya, uid: 2002}
   - name: adding user as samba users
-    command: smbpasswd -n -a '{ item }' 
+    shell: (echo "redhat"; echo "redhat") | smbpasswd -s -a '{{ item }}' 
     with_items:
      - diya
      - priya
@@ -33,7 +35,6 @@
     command: pdbedit -L
     register: pdb
   - debug:
-     msg: samba user list
      var: pdb
   - name: "creating samba entry"
     blockinfile:
@@ -54,7 +55,7 @@
      immediate: yes
   - name: "starting service smb nmb"
     service:
-     name: '{ item }'
+     name: '{{ item }}'
      state: restarted
      enabled: yes
     with_items:
@@ -73,18 +74,24 @@
     yum: 
      name: [ 'libselinux-python', 'cifs-utils']
      state: present
+  - name: "creating credential file"
+    copy:
+     content: |
+       username=diya
+       password=redhat
+     dest: /root/creds.txt
+     mode: 0600
+     create: yes
   - name: "mounting directory at client"   
     mount:
      backup: yes
      src: //192.168.122.62/samba
      path: /mnt/samba
      fstype: cifs
-     opts: username=diya,multiuser,sec=ntlmssp,default
+     opts: multiuser,sec=ntlmssp,credentials=/root/creds.txt
      state: mounted
   - name: "checking df -h output"
     command: df -h
     register: cmd
   - debug:
-     var: cmd
-     
-     
+     var: cmd 
